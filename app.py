@@ -158,7 +158,6 @@ def create_task():
         return jsonify(error=e.errors()), 400
     except ValueError:
         return jsonify(message="Invalid date format. Use YYYY-MM-DD."), 400
-#pass payload in function it self 
     user = User.query.filter_by(email=get_jwt_identity()).first()
     if not user:
         return jsonify(message="User not found"), 404
@@ -248,7 +247,6 @@ def get_tasks():
             ("status", task.status)
         ]) for task in tasks
     ])
-#pydentic class return 
 
 @app.route('/tasks/<int:task_id>', methods=['GET'])
 @jwt_required
@@ -281,6 +279,7 @@ def update_task(task_id):
 
     try:
         data = TaskUpdateSchema(**request.json)
+        
         
         if data.title is not None:
             task.title = data.title
@@ -317,7 +316,7 @@ def delete_task(task_id):
     task = Task.query.filter_by(id=task_id, user_id=user.id).first()
     if not task:
         return jsonify(message="Task not found"), 404
-
+    
     db.session.delete(task)
     db.session.commit()
     return jsonify(message="Task deleted successfully"), 200
