@@ -7,6 +7,8 @@ from enum import Enum
 import datetime
 import jwt
 from functools import wraps
+from typing import Optional
+from collections import OrderedDict
 
 SWAGGER_URL = '/api/docs'  
 API_URL = '/static/swagger.json'  
@@ -23,6 +25,7 @@ swaggerui_blueprint = get_swaggerui_blueprint(
     config={  
         'app_name': "Test application"
     },
+   
 )
 
 app.register_blueprint(swaggerui_blueprint)
@@ -102,6 +105,13 @@ class TaskSchema(BaseModel):
     due_date: str
     priority: PriorityEnum
     status: bool
+
+class TaskUpdateSchema(BaseModel):
+    title: Optional[constr(max_length=100)] = None
+    description: Optional[str] = None
+    due_date: Optional[str] = None
+    priority: Optional[PriorityEnum] = None
+    status: Optional[bool] = None
     
 
 @app.route('/')
@@ -148,6 +158,7 @@ def create_task():
         return jsonify(error=e.errors()), 400
     except ValueError:
         return jsonify(message="Invalid date format. Use YYYY-MM-DD."), 400
+#pass payload in function it self 
     user = User.query.filter_by(email=get_jwt_identity()).first()
     if not user:
         return jsonify(message="User not found"), 404
@@ -202,19 +213,40 @@ def get_tasks():
     if order not in ['asc', 'desc']:
         return jsonify(message="Invalid order value"), 400
 
-    sort_column = getattr(Task, sort_by)
-    query = query.order_by(sort_column.desc() if order == 'desc' else sort_column.asc())
+    if sort_by == 'priority':
+        priority_order = db.case(
+            (Task.priority == 'High', 1),
+            (Task.priority == 'Medium', 2),
+            (Task.priority == 'Low', 3),
+            else_=4
+        )
+        if order == 'desc':
+            query = query.order_by(priority_order.desc())
+        else:
+            query = query.order_by(priority_order.asc())
+    else:
+        sort_column = getattr(Task, sort_by)
+        priority_order = db.case(
+            (Task.priority == 'High', 1),
+            (Task.priority == 'Medium', 2),
+            (Task.priority == 'Low', 3),
+            else_=4
+        )
+        if order == 'desc':
+            query = query.order_by(sort_column.desc(), priority_order.asc())
+        else:
+            query = query.order_by(sort_column.asc(), priority_order.asc())
 
     tasks = query.all()
     return jsonify([
-        {
-            "id": task.id,
-            "title": task.title,
-            "description": task.description,
-            "due_date": task.due_date.isoformat(),
-            "priority": task.priority,
-            "status": task.status
-        } for task in tasks
+        OrderedDict([
+            ("id", task.id),
+            ("title", task.title),
+            ("description", task.description),
+            ("due_date", task.due_date.isoformat()),
+            ("priority", task.priority),
+            ("status", task.status)
+        ]) for task in tasks
     ])
 #pydentic class return 
 
@@ -228,17 +260,14 @@ def get_task(task_id):
     task = Task.query.filter_by(id=task_id, user_id=user.id).first()
     if not task:
         return jsonify(message="Task not found"), 404
-    return jsonify({
-        "id": task.id,
-        "title": task.title,
-        "description": task.description,
-        "due_date": task.due_date.isoformat(),
-        "priority": task.priority,
-        "status": task.status
-    })
-#keep optional for single change of task attribute(make new pydentic class for task update)
-#if other attributes are not changed then no need to pass them in request body
-
+    return jsonify(OrderedDict([
+        ("id", task.id),
+        ("title", task.title),
+        ("description", task.description),
+        ("due_date", task.due_date.isoformat()),
+        ("priority", task.priority),
+        ("status", task.status)
+    ]))
 @app.route('/tasks/<int:task_id>', methods=['PUT'])
 @jwt_required
 def update_task(task_id):
@@ -251,14 +280,28 @@ def update_task(task_id):
         return jsonify(message="Task not found"), 404
 
     try:
-        data = TaskSchema(**request.json)
-        task.title = data.title
-        task.description = data.description
-        task.due_date = datetime.datetime.strptime(data.due_date, '%Y-%m-%d').date()
-        task.priority = data.priority.value
-        task.status = data.status
+        data = TaskUpdateSchema(**request.json)
+        
+        if data.title is not None:
+            task.title = data.title
+        if data.description is not None:
+            task.description = data.description
+        if data.due_date is not None:
+            task.due_date = datetime.datetime.strptime(data.due_date, '%Y-%m-%d').date()
+        if data.priority is not None:
+            task.priority = data.priority.value
+        if data.status is not None:
+            task.status = data.status
+            
         db.session.commit()
-        return jsonify(message="Task updated successfully"), 200
+        return jsonify(OrderedDict([
+            ("id", task.id),
+            ("title", task.title),
+            ("description", task.description),
+            ("due_date", task.due_date.isoformat()),
+            ("priority", task.priority),
+            ("status", task.status)
+        ])), 200
     except ValidationError as e:
         return jsonify(error=e.errors()), 400
     except ValueError:
