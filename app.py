@@ -8,7 +8,7 @@ app.config['JWT_SECRET_KEY'] = '13f6e15b81e105a51c736c401d1ff2ffd1eed5189a338077
 jwt = JWTManager(app)
 
 mydb = psycopg2.connect(
-    dbname="flaskdb", user="flaskuser", password="flaskpass", host="localhost", port="5432"
+    dbname="db", user="user", password="password", host="localhost", port="5432"
 )
 
 mycursor = mydb.cursor()
