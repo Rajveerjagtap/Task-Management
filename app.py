@@ -9,7 +9,7 @@ import jwt
 from functools import wraps
 
 SWAGGER_URL = '/api/docs'  
-API_URL = 'http://petstore.swagger.io/v2/swagger.json'  
+API_URL = '/static/swagger.json'  
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://flaskuser:flaskpass@localhost:5432/flaskdb'
@@ -23,7 +23,6 @@ swaggerui_blueprint = get_swaggerui_blueprint(
     config={  
         'app_name': "Test application"
     },
-   
 )
 
 app.register_blueprint(swaggerui_blueprint)
@@ -149,7 +148,6 @@ def create_task():
         return jsonify(error=e.errors()), 400
     except ValueError:
         return jsonify(message="Invalid date format. Use YYYY-MM-DD."), 400
-#pass payload in function it self 
     user = User.query.filter_by(email=get_jwt_identity()).first()
     if not user:
         return jsonify(message="User not found"), 404
@@ -172,7 +170,6 @@ def get_tasks():
     user = User.query.filter_by(email=get_jwt_identity()).first()
     if not user:
         return jsonify(message="User not found"), 404
-   # print(user)
     query = Task.query.filter_by(user_id=user.id)
 
     due_before = request.args.get('due_before')
@@ -240,6 +237,8 @@ def get_task(task_id):
         "status": task.status
     })
 #keep optional for single change of task attribute(make new pydentic class for task update)
+#if other attributes are not changed then no need to pass them in request body
+
 @app.route('/tasks/<int:task_id>', methods=['PUT'])
 @jwt_required
 def update_task(task_id):

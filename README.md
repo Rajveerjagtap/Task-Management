@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 📝 Flask Task Manager API
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue?style=for-the-badge&logo=python)
@@ -44,4 +45,23 @@
 
 ```bash
 git clone https://github.com/yourusername/flask-task-manager.git
+=======
+
+| Param       | Type    | Example     |
+|-------------|---------|-------------|
+| due_before  | string  | 2025-06-10  |
+| due_after   | string  | 2025-06-01  |
+| priority    | string  | High/Medium/Low |
+| status      | boolean | true / false |
+| sort_by     | string  | due_date / priority |
+| order       | string  | asc / desc |
+
+---
+
+## 🔧 Setup & Run
+
+1. **Clone the repository**  
+```bash
+git clone https://github.com/your-username/flask-task-manager.git
+>>>>>>> 3617055 (updated)
 cd flask-task-manager

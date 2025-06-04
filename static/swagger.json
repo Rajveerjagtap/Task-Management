@@ -1,0 +1,590 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Task Management API",
+    "description": "A comprehensive API for managing tasks with user authentication, CRUD operations, and advanced filtering capabilities.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support",
+      "email": "support@taskapi.com"
+    }
+  },
+  "host": "localhost:5000",
+  "basePath": "/",
+  "schemes": ["http"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "securityDefinitions": {
+    "Bearer": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'"
+    }
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "tags": ["Landing"],
+        "summary": "Landing page",
+        "description": "Returns the landing page HTML template",
+        "responses": {
+          "200": {
+            "description": "Landing page HTML",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a new user",
+        "description": "Create a new user account with username, email, and password",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UserRegister"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "User registered successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "User registered successfully"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/ValidationError"
+            }
+          },
+          "409": {
+            "description": "Email already registered",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Email already registered"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "User login",
+        "description": "Authenticate user and return JWT access token",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/UserLogin"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "access_token": {
+                  "type": "string",
+                  "description": "JWT access token",
+                  "example": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "schema": {
+              "$ref": "#/definitions/ValidationError"
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Invalid credentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks": {
+      "post": {
+        "tags": ["Tasks"],
+        "summary": "Create a new task",
+        "description": "Create a new task for the authenticated user",
+        "security": [{"Bearer": []}],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/TaskCreate"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Task created successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Task created successfully"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or invalid date format",
+            "schema": {
+              "$ref": "#/definitions/ValidationError"
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing token",
+            "schema": {
+              "$ref": "#/definitions/UnauthorizedError"
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "schema": {
+              "$ref": "#/definitions/NotFoundError"
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "Get all tasks",
+        "description": "Retrieve all tasks for the authenticated user with optional filtering and sorting",
+        "security": [{"Bearer": []}],
+        "parameters": [
+          {
+            "name": "due_before",
+            "in": "query",
+            "type": "string",
+            "format": "date",
+            "description": "Filter tasks due before this date (YYYY-MM-DD)",
+            "example": "2024-12-31"
+          },
+          {
+            "name": "due_after",
+            "in": "query",
+            "type": "string",
+            "format": "date",
+            "description": "Filter tasks due after this date (YYYY-MM-DD)",
+            "example": "2024-01-01"
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "type": "string",
+            "enum": ["High", "Medium", "Low"],
+            "description": "Filter tasks by priority"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "type": "string",
+            "enum": ["true", "false"],
+            "description": "Filter tasks by completion status"
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "type": "string",
+            "enum": ["due_date", "priority"],
+            "default": "due_date",
+            "description": "Sort tasks by field"
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "type": "string",
+            "enum": ["asc", "desc"],
+            "default": "asc",
+            "description": "Sort order"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of tasks",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Task"
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query parameters",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Invalid date format. Use YYYY-MM-DD."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing token",
+            "schema": {
+              "$ref": "#/definitions/UnauthorizedError"
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "schema": {
+              "$ref": "#/definitions/NotFoundError"
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{task_id}": {
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "Get a specific task",
+        "description": "Retrieve a specific task by ID for the authenticated user",
+        "security": [{"Bearer": []}],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "description": "Task ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task details",
+            "schema": {
+              "$ref": "#/definitions/Task"
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing token",
+            "schema": {
+              "$ref": "#/definitions/UnauthorizedError"
+            }
+          },
+          "404": {
+            "description": "Task or user not found",
+            "schema": {
+              "$ref": "#/definitions/NotFoundError"
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Tasks"],
+        "summary": "Update a task",
+        "description": "Update an existing task for the authenticated user",
+        "security": [{"Bearer": []}],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "description": "Task ID"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/TaskCreate"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task updated successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Task updated successfully"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or invalid date format",
+            "schema": {
+              "$ref": "#/definitions/ValidationError"
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing token",
+            "schema": {
+              "$ref": "#/definitions/UnauthorizedError"
+            }
+          },
+          "404": {
+            "description": "Task or user not found",
+            "schema": {
+              "$ref": "#/definitions/NotFoundError"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Tasks"],
+        "summary": "Delete a task",
+        "description": "Delete an existing task for the authenticated user",
+        "security": [{"Bearer": []}],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "description": "Task ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Task deleted successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string",
+                  "example": "Task deleted successfully"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Invalid or missing token",
+            "schema": {
+              "$ref": "#/definitions/UnauthorizedError"
+            }
+          },
+          "404": {
+            "description": "Task or user not found",
+            "schema": {
+              "$ref": "#/definitions/NotFoundError"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "UserRegister": {
+      "type": "object",
+      "required": ["username", "email", "password"],
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Username for the new account",
+          "example": "john_doe"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Valid email address",
+          "example": "john.doe@example.com"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 6,
+          "description": "Password (minimum 6 characters)",
+          "example": "securePassword123"
+        }
+      }
+    },
+    "UserLogin": {
+      "type": "object",
+      "required": ["email", "password"],
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User's email address",
+          "example": "john.doe@example.com"
+        },
+        "password": {
+          "type": "string",
+          "description": "User's password",
+          "example": "securePassword123"
+        }
+      }
+    },
+    "TaskCreate": {
+      "type": "object",
+      "required": ["title", "due_date", "priority", "status"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Task title",
+          "example": "Complete project documentation"
+        },
+        "description": {
+          "type": "string",
+          "description": "Task description (optional)",
+          "example": "Write comprehensive documentation for the new API endpoints"
+        },
+        "due_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Due date in YYYY-MM-DD format",
+          "example": "2024-12-31"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["High", "Medium", "Low"],
+          "description": "Task priority level",
+          "example": "High"
+        },
+        "status": {
+          "type": "boolean",
+          "description": "Task completion status",
+          "example": false
+        }
+      }
+    },
+    "Task": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Unique task identifier",
+          "example": 1
+        },
+        "title": {
+          "type": "string",
+          "description": "Task title",
+          "example": "Complete project documentation"
+        },
+        "description": {
+          "type": "string",
+          "description": "Task description",
+          "example": "Write comprehensive documentation for the new API endpoints"
+        },
+        "due_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Due date in ISO format",
+          "example": "2024-12-31"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["High", "Medium", "Low"],
+          "description": "Task priority level",
+          "example": "High"
+        },
+        "status": {
+          "type": "boolean",
+          "description": "Task completion status",
+          "example": false
+        }
+      }
+    },
+    "ValidationError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "loc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "msg": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              }
+            }
+          },
+          "example": [
+            {
+              "loc": ["email"],
+              "msg": "field required",
+              "type": "value_error.missing"
+            }
+          ]
+        }
+      }
+    },
+    "UnauthorizedError": {
+      "type": "object",
+      "properties": {
+        "msg": {
+          "type": "string",
+          "example": "Missing or invalid Authorization header"
+        }
+      }
+    },
+    "NotFoundError": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "example": "User not found"
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Landing",
+      "description": "Landing page operations"
+    },
+    {
+      "name": "Authentication",
+      "description": "User authentication operations"
+    },
+    {
+      "name": "Tasks",
+      "description": "Task management operations"
+    }
+  ]
+}
