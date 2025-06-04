@@ -12,23 +12,102 @@ SWAGGER_URL = '/api/docs'
 API_URL = 'http://petstore.swagger.io/v2/swagger.json'  
 
 app = Flask(__name__)
-app.config['JWT_SECRET_KEY'] = '13f6e15b81e105a51c736c401d1ff2ffd1eed5189a338077c918d2edf3cb7cf7'
-jwt = JWTManager(app)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg2://flaskuser:flaskpass@localhost:5432/flaskdb'
+app.config['JWT_SECRET_KEY'] = 'supersecretkey'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 
-mydb = psycopg2.connect(
-    dbname="flaskdb", user="flaskuser", password="flaskpass", host="localhost", port="5432"
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,  
+    API_URL,
+    config={  
+        'app_name': "Test application"
+    },
+   
 )
 
-mycursor = mydb.cursor()
+app.register_blueprint(swaggerui_blueprint)
 
-mycursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL
-)
-""")
-mydb.commit()
+db = SQLAlchemy(app)
+
+def create_access_token(identity, expires_delta=None):
+    expire = datetime.datetime.utcnow() + (expires_delta if expires_delta else app.config['JWT_ACCESS_TOKEN_EXPIRES'])
+    payload = {
+        "sub": identity,
+        "iat": datetime.datetime.utcnow(),
+        "exp": expire
+    }
+    token = jwt.encode(payload, app.config['JWT_SECRET_KEY'], algorithm="HS256")
+    if isinstance(token, bytes):
+        token = token.decode('utf-8')
+    return token
+
+def jwt_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", None)
+        if not auth_header or not auth_header.startswith("Bearer "):
+            return jsonify({"msg": "Missing or invalid Authorization header"}), 401
+
+        token = auth_header.split(" ")[1]
+        try:
+            payload = jwt.decode(token, app.config['JWT_SECRET_KEY'], algorithms=["HS256"])
+            request.user_identity = payload.get("sub")
+        except jwt.ExpiredSignatureError:
+            return jsonify({"msg": "Token expired"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"msg": "Invalid token"}), 401
+        
+        return fn(*args, **kwargs)
+    return wrapper
+
+def get_jwt_identity():
+    return getattr(request, "user_identity", None)
+
+
+class User(db.Model):
+    __tablename__ = 'users' 
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(256), nullable=False)
+
+class Task(db.Model):
+    __tablename__ = 'tasks'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    due_date = db.Column(db.Date, nullable=False)
+    priority = db.Column(db.String(10), nullable=False)
+    status = db.Column(db.Boolean, default=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+
+class UserRegister(BaseModel):
+    username: str
+    email: EmailStr
+    password: constr(min_length=6)
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class PriorityEnum(str, Enum):
+    High = "High"
+    Medium = "Medium"
+    Low = "Low"
+
+class TaskSchema(BaseModel):
+    title: constr(max_length=100)
+    description: str = None
+    due_date: str
+    priority: PriorityEnum
+    status: bool
+    
+
+@app.route('/')
+def landing():
+    return render_template('landing.html')
 
 @app.route('/register', methods=['POST'])
 def register():
